@@ -21,7 +21,6 @@ interface DashboardViewProps {
   activeCashRegister: CashRegister | null;
   stockMovements: StockMovement[];
   onNavigate: (tab: ActiveTab) => void;
-  onSeedDemo?: () => void;
 }
 
 export function DashboardView({

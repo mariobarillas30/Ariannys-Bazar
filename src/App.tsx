@@ -172,21 +172,6 @@ function MainApp() {
     };
   }, [userProfile]);
 
-  // Carga de catálogo demostrativo inicial
-  const handleSeedDemo = async () => {
-    notifyPendingWrite(true);
-    try {
-      const pCount = await InventoryRepository.seedSampleData(cashierName);
-      const cCount = await CustomerRepository.seedSampleCustomers();
-      showSuccessToast(`¡Catálogo inicial (${pCount} productos) y ${cCount} clientes cargados con éxito!`);
-    } catch (err: any) {
-      console.error('Error al cargar datos demo:', err);
-      alert('Error cargando datos demo: ' + err.message);
-    } finally {
-      notifyPendingWrite(false);
-    }
-  };
-
   const handleSaleSuccess = (sale: Sale) => {
     setSelectedReceiptSale(sale);
   };
@@ -242,7 +227,6 @@ function MainApp() {
                   activeCashRegister={activeCashRegister}
                   stockMovements={stockMovements}
                   onNavigate={setActiveTab}
-                  onSeedDemo={handleSeedDemo}
                 />
               )}
 

@@ -261,49 +261,38 @@ export class UserRepository {
   }
 
   /**
-   * Asegura que los usuarios iniciales con sus PINs existan en Firestore.
+   * Asegura que exista el Administrador Principal en Firestore si no hay usuarios.
+   * Elimina perfiles demo antiguos para que el usuario gestione sus propios usuarios reales en la BD.
    */
   static async ensureDefaultUsersSeeded(): Promise<void> {
-    const defaultUsers: UserProfile[] = [
-      {
-        uid: 'user_admin_master',
-        email: 'admin@ariannysbazar.com',
-        displayName: 'Administrador Principal',
-        role: 'admin',
-        pin: '1234',
-        createdAt: 1700000000000,
-        updatedAt: Date.now()
-      },
-      {
-        uid: 'user_cashier_arianny',
-        email: 'cajero@ariannysbazar.com',
-        displayName: 'Arianny (Cajero POS)',
-        role: 'cashier',
-        pin: '2024',
-        createdAt: 1700000000000,
-        updatedAt: Date.now()
-      },
-      {
-        uid: 'user_inventory_stock',
-        email: 'inventario@ariannysbazar.com',
-        displayName: 'Encargado de Inventario',
-        role: 'inventory',
-        pin: '9999',
-        createdAt: 1700000000000,
-        updatedAt: Date.now()
-      }
-    ];
-
     try {
-      for (const u of defaultUsers) {
-        const docRef = doc(db, USERS_COLLECTION, u.uid);
-        const snap = await getDoc(docRef);
-        if (!snap.exists()) {
-          await setDoc(docRef, u);
+      // 1. Limpieza de usuarios demo residuales si existen
+      const demoUids = ['user_cashier_arianny', 'user_inventory_stock'];
+      for (const dUid of demoUids) {
+        const dSnap = await getDoc(doc(db, USERS_COLLECTION, dUid));
+        if (dSnap.exists()) {
+          await deleteDoc(doc(db, USERS_COLLECTION, dUid));
         }
       }
+
+      // 2. Comprobar si existe al menos un usuario administrador en la base de datos
+      const q = query(collection(db, USERS_COLLECTION));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        const masterAdmin: UserProfile = {
+          uid: 'user_admin_master',
+          email: 'admin@ariannysbazar.com',
+          displayName: 'Administrador Principal',
+          role: 'admin',
+          pin: '1234',
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        await setDoc(doc(db, USERS_COLLECTION, masterAdmin.uid), masterAdmin);
+      }
     } catch (err) {
-      console.error('Error al sembrar usuarios predeterminados:', err);
+      console.error('Error al inicializar usuarios en Firestore:', err);
     }
   }
 

@@ -22,8 +22,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   registerWithEmail: (email: string, pass: string, name: string, role: UserRole) => Promise<void>;
-  loginAsDemoRole: (demoRole: UserRole) => Promise<void>;
-  loginWithPin: (pin: string) => Promise<UserProfile>;
+  loginWithPin: (pin: string, targetUid?: string) => Promise<UserProfile>;
   switchUser: (profile: UserProfile) => void;
   logout: () => Promise<void>;
   hasRole: (allowedRoles: UserRole[]) => boolean;
@@ -32,37 +31,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Perfiles Demostrativos Predeterminados con PIN de Firestore
-const DEMO_PROFILES: Record<UserRole, UserProfile> = {
-  admin: {
-    uid: 'user_admin_master',
-    email: 'admin@ariannysbazar.com',
-    displayName: 'Administrador (Demo)',
-    role: 'admin',
-    pin: '1234',
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  },
-  cashier: {
-    uid: 'user_cashier_arianny',
-    email: 'cajero@ariannysbazar.com',
-    displayName: 'Arianny (Cajero Demo)',
-    role: 'cashier',
-    pin: '2024',
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  },
-  inventory: {
-    uid: 'user_inventory_stock',
-    email: 'inventario@ariannysbazar.com',
-    displayName: 'Encargado de Stock (Demo)',
-    role: 'inventory',
-    pin: '9999',
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  }
-};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -115,12 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUserProfile(null);
           }
         } else {
-          const savedDemoRole = localStorage.getItem('ariannys_demo_role') as UserRole | null;
-          if (savedDemoRole && DEMO_PROFILES[savedDemoRole]) {
-            setUserProfile(DEMO_PROFILES[savedDemoRole]);
-          } else {
-            setUserProfile(null);
-          }
+          setUserProfile(null);
         }
       }
       setLoading(false);
@@ -182,35 +145,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Acceso de prueba instantáneo por Rol (Modo Demo)
-  const loginAsDemoRole = async (demoRole: UserRole) => {
-    if (user) {
-      await signOut(auth);
-    }
-    const demoProf = DEMO_PROFILES[demoRole];
-    localStorage.setItem('ariannys_demo_role', demoRole);
-    localStorage.removeItem('ariannys_active_profile');
-    setUserProfile(demoProf);
-    
-    // Guardar en Firestore si es posible
-    try {
-      await UserRepository.saveUserProfile(demoProf);
-    } catch {
-      // Ignorar en fallback offline
-    }
-  };
-
   // Iniciar sesión directamente con PIN numérico de la base de datos central (4 a 6 dígitos)
-  const loginWithPin = async (pin: string): Promise<UserProfile> => {
-    const foundUser = await UserRepository.findUserByPin(pin);
-    if (!foundUser) {
-      throw new Error('PIN de seguridad no reconocido o no registrado en el servidor central.');
+  const loginWithPin = async (pin: string, targetUid?: string): Promise<UserProfile> => {
+    const cleanPin = pin.trim();
+    let foundUser: UserProfile | null = null;
+
+    if (targetUid) {
+      // 1. Si se seleccionó un usuario específico, verificar que su PIN coincida en Firestore
+      const profile = await UserRepository.getUserProfile(targetUid);
+      if (profile) {
+        if (profile.pin && profile.pin === cleanPin) {
+          foundUser = profile;
+        } else {
+          throw new Error(`El PIN de seguridad es incorrecto para ${profile.displayName || 'este usuario'}.`);
+        }
+      } else {
+        throw new Error('Usuario no encontrado en la base de datos central.');
+      }
+    } else {
+      // 2. Si no se especificó targetUid, buscar directamente el usuario asociado a ese PIN en Firestore
+      foundUser = await UserRepository.findUserByPin(cleanPin);
+      if (!foundUser) {
+        throw new Error('PIN de seguridad no registrado en la base de datos central.');
+      }
     }
+
     if (user) {
       await signOut(auth);
     }
     localStorage.setItem('ariannys_active_profile', JSON.stringify(foundUser));
-    localStorage.removeItem('ariannys_demo_role');
     setUserProfile(foundUser);
     return foundUser;
   };
@@ -218,13 +181,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Cambiar de usuario / cajero activo
   const switchUser = (profile: UserProfile) => {
     localStorage.setItem('ariannys_active_profile', JSON.stringify(profile));
-    localStorage.removeItem('ariannys_demo_role');
     setUserProfile(profile);
   };
 
   // Cerrar sesión
   const logout = async () => {
-    localStorage.removeItem('ariannys_demo_role');
     localStorage.removeItem('ariannys_active_profile');
     setUserProfile(null);
     if (user) {
@@ -269,7 +230,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loginWithGoogle,
       loginWithEmail,
       registerWithEmail,
-      loginAsDemoRole,
       loginWithPin,
       switchUser,
       logout,

@@ -94,8 +94,8 @@ export function UsersManagementView() {
 
   const handleCreateUser = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newUserName.trim() || !newUserEmail.trim()) {
-      setModalError('Por favor completa el nombre y el correo electrónico.');
+    if (!newUserName.trim()) {
+      setModalError('Por favor ingresa el nombre del usuario o cajero.');
       return;
     }
 
@@ -109,9 +109,12 @@ export function UsersManagementView() {
 
     try {
       const generatedUid = 'usr_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const cleanSlug = newUserName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const assignedEmail = newUserEmail.trim() || `${cleanSlug || 'cajero'}@ariannysbazar.pos`;
+
       const newProfile: UserProfile = {
         uid: generatedUid,
-        email: newUserEmail.trim(),
+        email: assignedEmail,
         displayName: newUserName.trim(),
         role: newUserRole,
         ...(newUserPin.trim() ? { pin: newUserPin.trim() } : {}),
@@ -120,7 +123,7 @@ export function UsersManagementView() {
       };
 
       await UserRepository.saveUserProfile(newProfile);
-      showSuccessToast(`Usuario "${newUserName.trim()}" registrado exitosamente en el servidor central.`);
+      showSuccessToast(`Usuario "${newUserName.trim()}" registrado y vinculado exitosamente a la base de datos Firestore.`);
       
       // Reset form & close modal
       setNewUserName('');
@@ -193,11 +196,11 @@ export function UsersManagementView() {
     setIsDeletingUser(true);
     try {
       await UserRepository.deleteUser(userToDelete.uid);
-      showSuccessToast(`Usuario "${userToDelete.displayName}" eliminado exitosamente del servidor central.`);
+      showSuccessToast(`Usuario "${userToDelete.displayName}" eliminado exitosamente de la base de datos Firestore.`);
       setUserToDelete(null);
     } catch (err: any) {
       console.error('Error al eliminar usuario:', err);
-      alert('Error al eliminar usuario del servidor: ' + (err.message || ''));
+      alert('Error al eliminar usuario de la base de datos: ' + (err.message || ''));
     } finally {
       setIsDeletingUser(false);
     }
@@ -240,12 +243,18 @@ export function UsersManagementView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-white tracking-tight font-['Outfit'] flex items-center gap-2">
-            <Users className="w-6 h-6 text-blue-500" />
-            Gestión de Usuarios y Claves de Seguridad
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-black text-white tracking-tight font-['Outfit'] flex items-center gap-2">
+              <Users className="w-6 h-6 text-blue-500" />
+              Gestión de Usuarios y Claves de Seguridad
+            </h2>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>BD Firestore: users</span>
+            </div>
+          </div>
           <p className="text-xs text-slate-400 mt-1">
-            Administración centralizada de cuentas, creación, baja de usuarios, niveles de acceso y consulta de PINs protegidos.
+            Administración centralizada de cuentas, creación, baja de usuarios, niveles de acceso y consulta de PINs protegidos en tiempo real.
           </p>
         </div>
 
@@ -369,6 +378,9 @@ export function UsersManagementView() {
                             {isCurrentSessionUser && (
                               <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-400 font-normal">Tú</span>
                             )}
+                          </span>
+                          <span className="font-mono text-[9px] text-slate-500 font-normal">
+                            UID: {user.uid}
                           </span>
                         </div>
                       </td>
@@ -651,14 +663,13 @@ export function UsersManagementView() {
 
               <div>
                 <label className="block text-slate-300 font-medium mb-1.5">
-                  Correo Electrónico <span className="text-rose-400">*</span>
+                  Correo o Identificador <span className="text-slate-500 font-normal">(Opcional)</span>
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
                   <input
-                    type="email"
-                    required
-                    placeholder="ejemplo@ariannysbazar.com"
+                    type="text"
+                    placeholder="Opcional (se autogenera si se deja vacío)"
                     value={newUserEmail}
                     onChange={(e) => setNewUserEmail(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder:text-slate-600 focus:border-blue-500 focus:outline-none"
@@ -734,11 +745,11 @@ export function UsersManagementView() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSavingUser || !newUserName.trim() || !newUserEmail.trim()}
+                  disabled={isSavingUser || !newUserName.trim()}
                   className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-colors"
                 >
                   {isSavingUser ? (
-                    <span>Registrando en el servidor...</span>
+                    <span>Guardando en la base de datos...</span>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
