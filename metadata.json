@@ -1,0 +1,6 @@
+{
+  "name": "Ariannys Bazar - Sistema POS y Gestión en Tiempo Real",
+  "description": "Sistema integral de punto de venta, inventario, control de caja y clientes para Ariannys Bazar con sincronización estricta en tiempo real en Firestore y cero caché local.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

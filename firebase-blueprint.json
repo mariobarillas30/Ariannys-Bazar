@@ -1,0 +1,86 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Perfil de usuario con rol y permisos RBAC",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "cashier", "inventory"] },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["uid", "email", "displayName", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Producto de catálogo e inventario",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "sku": { "type": "string" },
+        "category": { "type": "string" },
+        "costPrice": { "type": "number" },
+        "sellingPrice": { "type": "number" },
+        "wholesalePrice": { "type": "number" },
+        "stock": { "type": "number" }
+      },
+      "required": ["name", "sku", "category", "sellingPrice", "stock"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Venta realizada",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "total": { "type": "number" },
+        "createdBy": { "type": "string" }
+      }
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Cliente registrado",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "CashRegister": {
+      "title": "CashRegister",
+      "description": "Turno de caja",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Colección de perfiles de usuario y roles RBAC"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Catálogo de productos"
+    },
+    "/sales/{saleId}": {
+      "schema": { "$ref": "#/entities/Sale" },
+      "description": "Registro de ventas"
+    },
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Directorio de clientes"
+    },
+    "/cashRegisters/{registerId}": {
+      "schema": { "$ref": "#/entities/CashRegister" },
+      "description": "Registros y turnos de caja"
+    }
+  }
+}
