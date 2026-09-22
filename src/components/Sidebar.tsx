@@ -43,8 +43,10 @@ export function Sidebar({
 
   return (
     <aside
-      className={`bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out flex flex-col shrink-0 select-none z-30 ${
-        isCollapsed ? 'w-16' : 'w-64'
+      className={`bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out flex flex-col shrink-0 select-none z-50 ${
+        isCollapsed 
+          ? 'hidden md:flex w-16' 
+          : 'fixed md:relative inset-y-0 left-0 w-64 shadow-2xl md:shadow-none'
       }`}
     >
       {/* Botón de Colapso / Expansión del Menú Lateral */}

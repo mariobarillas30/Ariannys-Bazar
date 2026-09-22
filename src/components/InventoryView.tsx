@@ -249,7 +249,7 @@ export function InventoryView({ products, stockMovements, cashierName }: Invento
             wholesaleMinQty: 6,
             minStockAlert: Number(formMinStockAlert),
             unit: formUnit,
-            description: formDescription.trim() || undefined,
+            description: formDescription.trim(),
           },
           editingProduct,
           cashierName
@@ -270,7 +270,7 @@ export function InventoryView({ products, stockMovements, cashierName }: Invento
             stock: Number(formStock),
             minStockAlert: Number(formMinStockAlert),
             unit: formUnit,
-            description: formDescription.trim() || undefined,
+            description: formDescription.trim(),
             isActive: true,
           },
           cashierName
@@ -448,6 +448,13 @@ export function InventoryView({ products, stockMovements, cashierName }: Invento
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsCategoryManagerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-colors"
+          >
+            <FolderPlus className="w-4 h-4 text-blue-400" />
+            <span>+ Nueva Categoría</span>
+          </button>
           <button
             onClick={handleOpenNewProduct}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors"
@@ -790,7 +797,7 @@ export function InventoryView({ products, stockMovements, cashierName }: Invento
                 <input
                   type="text"
                   required
-                  placeholder="Ej: Cuaderno Profesional 100 Hojas"
+                  placeholder="Ej: Bóxer de Algodón Dama / Brasier con Encaje"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-rose-500"
@@ -827,19 +834,29 @@ export function InventoryView({ products, stockMovements, cashierName }: Invento
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-300 mb-1">Categoría</label>
-                  <input
-                    type="text"
-                    list="categoriesList"
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-slate-300">Categoría</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCategoryManagerOpen(true)}
+                      className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-semibold"
+                    >
+                      <FolderPlus className="w-3 h-3" /> + Nueva Categoría
+                    </button>
+                  </div>
+                  <select
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value)}
+                    required
                     className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-rose-500"
-                  />
-                  <datalist id="categoriesList">
+                  >
+                    <option value="">Seleccione una categoría...</option>
                     {categories.map((c) => (
-                      <option key={c} value={c} />
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
-                  </datalist>
+                  </select>
                 </div>
               </div>
 

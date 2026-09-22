@@ -7,10 +7,10 @@ import {
   writeBatch, 
   query, 
   orderBy, 
-  getDocsFromServer,
+  getDocs,
   Unsubscribe
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, sanitizeFirestoreData } from '../lib/firebase';
 import { Customer, CustomerPayment, CashRegister, CashMovement, CustomerType } from '../types';
 
 const CUSTOMERS_COLLECTION = 'customers';
@@ -87,7 +87,7 @@ export class CustomerRepository {
    */
   static async getCustomersFromServer(): Promise<Customer[]> {
     const q = query(collection(db, CUSTOMERS_COLLECTION), orderBy('name', 'asc'));
-    const snapshot = await getDocsFromServer(q);
+    const snapshot = await getDocs(q);
     const list: Customer[] = [];
     snapshot.forEach((d) => {
       const data = d.data();
@@ -106,7 +106,7 @@ export class CustomerRepository {
   static async createCustomer(data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'currentDebt' | 'totalPurchases'>): Promise<string> {
     const now = Date.now();
     const ref = doc(collection(db, CUSTOMERS_COLLECTION));
-    const newCustomer: Customer = {
+    const newCustomer = sanitizeFirestoreData({
       ...data,
       customerType: data.customerType || 'retail',
       id: ref.id,
@@ -114,7 +114,7 @@ export class CustomerRepository {
       totalPurchases: 0,
       createdAt: now,
       updatedAt: now,
-    };
+    });
     const batch = writeBatch(db);
     batch.set(ref, newCustomer);
     await batch.commit();
@@ -127,10 +127,10 @@ export class CustomerRepository {
   static async updateCustomer(id: string, updates: Partial<Customer>): Promise<void> {
     const ref = doc(db, CUSTOMERS_COLLECTION, id);
     const batch = writeBatch(db);
-    batch.update(ref, {
+    batch.update(ref, sanitizeFirestoreData({
       ...updates,
       updatedAt: Date.now(),
-    });
+    }));
     await batch.commit();
   }
 
@@ -176,12 +176,12 @@ export class CustomerRepository {
       });
 
       // 2. Registrar el documento de comprobante de pago
-      const record: CustomerPayment = {
+      const record: CustomerPayment = sanitizeFirestoreData({
         ...paymentData,
         id: paymentRef.id,
         createdAt: now,
         createdBy: userName,
-      };
+      });
       transaction.set(paymentRef, record);
 
       // 3. Si el pago fue en efectivo y se especificó caja abierta, registrar el ingreso de dinero

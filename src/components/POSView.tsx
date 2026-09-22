@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type FormEvent } from 'react';
 import { 
   Search, 
   ShoppingCart, 
@@ -22,11 +22,14 @@ import {
   Receipt,
   KeyRound,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  Unlock,
+  X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Product, Sale, SaleItem, Customer, CashRegister, PriceType, PaymentMethod, InvoiceType, PinAuthResult } from '../types';
 import { SalesRepository } from '../repositories/SalesRepository';
+import { CashRegisterRepository } from '../repositories/CashRegisterRepository';
 import { useSync } from '../context/SyncContext';
 import { useAuth } from '../context/AuthContext';
 import { SALVADORAN_BANKS, COMPANY_INFO_SV } from '../lib/elSalvadorData';
@@ -59,6 +62,45 @@ export function POSView({
   const [pinTargetUid, setPinTargetUid] = useState<string | undefined>(undefined);
   const [pinTargetName, setPinTargetName] = useState<string | undefined>(undefined);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  // Estado para la vista móvil en POS (catálogo vs carrito)
+  const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
+  const [isOpenShiftModalOpen, setIsOpenShiftModalOpen] = useState(false);
+  const [openingBalance, setOpeningBalance] = useState<number>(50);
+  const [isSavingShift, setIsSavingShift] = useState(false);
+  const [shiftErrorMsg, setShiftErrorMsg] = useState<string | null>(null);
+
+  const handleOpenShiftSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (openingBalance < 0) {
+      setShiftErrorMsg('El monto de apertura no puede ser negativo.');
+      return;
+    }
+
+    setIsOpenShiftModalOpen(false);
+
+    requestPinAuthorization(
+      'Autorización de Apertura de Turno',
+      `Ingrese el PIN de cajero o Super Administrador para autorizar la apertura de caja con fondo inicial de $${Number(openingBalance).toFixed(2)} USD.`,
+      async () => {
+        setIsSavingShift(true);
+        setShiftErrorMsg(null);
+        notifyPendingWrite(true);
+
+        try {
+          await CashRegisterRepository.openRegister(Number(openingBalance), cashierName);
+          showSuccessToast('¡Turno de caja abierto y verificado por PIN en Firestore!');
+        } catch (err: any) {
+          console.error('Error al abrir caja:', err);
+          setShiftErrorMsg(err.message || 'Error al abrir caja.');
+          setIsOpenShiftModalOpen(true);
+        } finally {
+          setIsSavingShift(false);
+          notifyPendingWrite(false);
+        }
+      }
+    );
+  };
 
   // Filtros de búsqueda por texto y categoría de producto
   const [searchTerm, setSearchTerm] = useState('');
@@ -595,7 +637,10 @@ export function POSView({
             </span>
           </div>
           <button
-            onClick={onOpenShiftPrompt}
+            onClick={() => {
+              setShiftErrorMsg(null);
+              setIsOpenShiftModalOpen(true);
+            }}
             className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold tracking-tight shadow-md shrink-0 active:scale-95"
           >
             Abrir Turno de Caja
@@ -603,11 +648,44 @@ export function POSView({
         </div>
       )}
 
+      {/* Selector Móvil de Vista en POS (< lg) */}
+      <div className="flex lg:hidden items-center bg-slate-950 p-1 rounded-xl border border-slate-800 mb-4">
+        <button
+          type="button"
+          onClick={() => setMobileTab('catalog')}
+          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            mobileTab === 'catalog'
+              ? 'bg-blue-600 text-white shadow'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span>Catálogo</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('cart')}
+          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 relative ${
+            mobileTab === 'cart'
+              ? 'bg-blue-600 text-white shadow'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <ShoppingCart className="w-3.5 h-3.5" />
+          <span>Carrito</span>
+          {cart.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white">
+              {cart.reduce((acc, i) => acc + i.quantity, 0)}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Disposición Principal: Catálogo (Izquierda 7 col) y Carrito (Derecha 5 col) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* IZQUIERDA: Catálogo de Productos */}
-        <div className="lg:col-span-7 space-y-4">
+        <div className={`lg:col-span-7 space-y-4 ${mobileTab === 'catalog' ? 'block' : 'hidden lg:block'}`}>
           
           {/* Controles de Encabezado: Búsqueda y Selector de Tarifa Detal/Mayoreo */}
           <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
@@ -658,12 +736,12 @@ export function POSView({
                   onClick={() => handleTogglePriceMode('dozen')}
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                     priceMode === 'dozen'
-                      ? 'bg-purple-600 text-white shadow-sm'
+                      ? 'bg-slate-800 text-white shadow-sm border border-slate-700'
                       : 'text-slate-400 hover:text-white'
                   }`}
                   title="Forzar tarifa de Docena (escala de 12 unidades)"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Tag className="w-3.5 h-3.5" />
                   <span>Docena</span>
                 </button>
               </div>
@@ -784,7 +862,7 @@ export function POSView({
         </div>
 
         {/* DERECHA: Carrito POS y Proceso de Cobro */}
-        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-md p-4 space-y-4">
+        <div className={`lg:col-span-5 bg-slate-900 border border-slate-800 rounded-md p-4 space-y-4 ${mobileTab === 'cart' ? 'block' : 'hidden lg:block'}`}>
           
           {/* Encabezado del Carrito */}
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
@@ -933,30 +1011,24 @@ export function POSView({
                 return (
                   <div
                     key={item.productId}
-                    className={`p-2 rounded-xl border transition-colors space-y-1 ${
-                      isDozenApplied
-                        ? 'bg-purple-950/30 border-purple-900/60'
-                        : isHalfDozenApplied
-                        ? 'bg-sky-950/30 border-sky-900/60'
-                        : 'bg-slate-900/90 border-slate-800'
-                    }`}
+                    className="p-2 rounded-xl border transition-colors space-y-1 bg-slate-900 border-slate-800"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h4 className="font-bold text-white text-xs truncate">{item.productName}</h4>
                           {isDozenApplied && (
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-purple-900 text-purple-200 uppercase">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300 uppercase border border-slate-700">
                               Docena
                             </span>
                           )}
                           {isHalfDozenApplied && (
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-sky-900 text-sky-200 uppercase">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300 uppercase border border-slate-700">
                               ½ Docena
                             </span>
                           )}
                           {!isDozenApplied && !isHalfDozenApplied && item.appliedPriceType === 'wholesale' && (
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-purple-900 text-purple-200 uppercase">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300 uppercase border border-slate-700">
                               Mayor
                             </span>
                           )}
@@ -967,7 +1039,7 @@ export function POSView({
                               ${item.retailPriceSnapshot.toFixed(2)}
                             </span>
                           )}
-                          <span className={isDozenApplied ? 'text-purple-300 font-bold' : isHalfDozenApplied ? 'text-sky-300 font-bold' : 'text-slate-300'}>
+                          <span className="text-slate-200 font-bold">
                             ${item.unitPrice.toFixed(2)} USD
                           </span>
                         </div>
@@ -1025,11 +1097,11 @@ export function POSView({
 
           {/* Resumen de ahorro obtenido por compra al mayoreo */}
           {totalWholesaleSavings > 0 && (
-            <div className="p-2 rounded-xl bg-gradient-to-r from-purple-950 to-indigo-950 border border-purple-800/80 flex items-center justify-between text-xs">
-              <span className="text-purple-200 font-bold flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" /> Ahorro por Mayoreo:
+            <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+              <span className="text-slate-300 font-bold">
+                Ahorro por Mayoreo:
               </span>
-              <span className="font-black text-purple-300 font-mono">
+              <span className="font-bold text-slate-200 font-mono">
                 -${totalWholesaleSavings.toFixed(2)} USD
               </span>
             </div>
@@ -1197,6 +1269,79 @@ export function POSView({
           </button>
         </div>
       </div>
+
+      {/* MODAL: Apertura de Turno de Caja Directa en POS */}
+      {isOpenShiftModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-950 border border-slate-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-base font-black text-white font-['Outfit'] flex items-center gap-2">
+                <Unlock className="w-4 h-4 text-emerald-400" />
+                Apertura de Turno de Caja
+              </h3>
+              <button
+                onClick={() => setIsOpenShiftModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {shiftErrorMsg && (
+              <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-500 text-rose-200 text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <span>{shiftErrorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleOpenShiftSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">
+                  Monto Inicial en Gaveta / Fondo ($) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={openingBalance}
+                  onChange={(e) => setOpeningBalance(Number(e.target.value))}
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-base font-bold focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-[11px] space-y-1">
+                <div>Cajero responsable: <strong className="text-white">{cashierName}</strong></div>
+                <div>Fecha y hora: {new Date().toLocaleString('es-ES')}</div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsOpenShiftModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingShift}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isSavingShift ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Abriendo...
+                    </>
+                  ) : (
+                    'Confirmar Apertura'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Verificación de PIN */}
       <PinVerificationModal

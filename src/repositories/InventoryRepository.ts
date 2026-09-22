@@ -7,11 +7,11 @@ import {
   writeBatch, 
   query, 
   orderBy, 
-  getDocsFromServer, 
-  getDocFromServer,
+  getDocs, 
+  getDoc,
   Unsubscribe
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, sanitizeFirestoreData } from '../lib/firebase';
 import { Category, Product, StockMovement } from '../types';
 
 const PRODUCTS_COLLECTION = 'products';
@@ -95,7 +95,7 @@ export class InventoryRepository {
    */
   static async getProductsFromServer(): Promise<Product[]> {
     const q = query(collection(db, PRODUCTS_COLLECTION), orderBy('name', 'asc'));
-    const snapshot = await getDocsFromServer(q);
+    const snapshot = await getDocs(q);
     const products: Product[] = [];
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
@@ -124,7 +124,7 @@ export class InventoryRepository {
    */
   static async getProductFromServer(id: string): Promise<Product | null> {
     const docRef = doc(db, PRODUCTS_COLLECTION, id);
-    const docSnap = await getDocFromServer(docRef);
+    const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) return null;
     const data = docSnap.data();
     const retail = data.sellingPrice || 0;
@@ -161,9 +161,11 @@ export class InventoryRepository {
       ? productData.dozenPrice 
       : (productData.wholesalePrice !== undefined ? Number((productData.wholesalePrice * 0.95).toFixed(2)) : Number((retail * 0.75).toFixed(2)));
 
-    const newProduct: Product = {
+    const rawProduct: Product = {
       ...productData,
       id: productRef.id,
+      description: productData.description ?? '',
+      barcode: productData.barcode ?? '',
       sellingPrice: retail,
       halfDozenPrice: halfDozen,
       dozenPrice: dozen,
@@ -172,6 +174,8 @@ export class InventoryRepository {
       createdAt: now,
       updatedAt: now,
     };
+
+    const newProduct = sanitizeFirestoreData(rawProduct);
 
     batch.set(productRef, newProduct);
 
@@ -209,10 +213,14 @@ export class InventoryRepository {
     const productRef = doc(db, PRODUCTS_COLLECTION, id);
     const batch = writeBatch(db);
 
-    batch.update(productRef, {
+    const rawUpdates = {
       ...updates,
+      ...(updates.description !== undefined ? { description: updates.description ?? '' } : {}),
+      ...(updates.barcode !== undefined ? { barcode: updates.barcode ?? '' } : {}),
       updatedAt: now,
-    });
+    };
+
+    batch.update(productRef, sanitizeFirestoreData(rawUpdates));
 
     // Auditoría de cambios en precios y escalas de mayoreo
     if (previousProduct) {
@@ -373,7 +381,7 @@ export class InventoryRepository {
     // Buscar si existe algún documento registrado por el campo name
     try {
       const q = query(collection(db, CATEGORIES_COLLECTION));
-      const snapshot = await getDocsFromServer(q);
+      const snapshot = await getDocs(q);
       snapshot.forEach(async (docSnap) => {
         if (docSnap.id === categoryId || docSnap.data().name === categoryId) {
           await deleteDoc(docSnap.ref);

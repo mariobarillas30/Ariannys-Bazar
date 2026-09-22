@@ -7,8 +7,7 @@ import {
   query, 
   where,
   orderBy, 
-  getDocsFromServer,
-  getDocFromServer,
+  getDocs,
   Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -115,7 +114,7 @@ export class CashRegisterRepository {
     return await runTransaction(db, async (transaction) => {
       // Verificar si ya existe una caja abierta en el sistema
       const q = query(collection(db, CASH_REGISTERS_COLLECTION), where('status', '==', 'open'));
-      const snapshot = await getDocsFromServer(q);
+      const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
         throw new Error('Ya existe una caja abierta actualmente. Debe cerrarla antes de abrir una nueva.');

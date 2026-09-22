@@ -363,21 +363,6 @@ export function LoginView() {
             )}
           </button>
         </div>
-
-        {/* Guía Informativa de Acceso */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 text-center space-y-1">
-          <p className="text-[11px] text-slate-400">
-            <strong className="text-slate-300">Base de Datos Conectada:</strong> Acceso con PIN de 4 a 6 dígitos registrado en el sistema.
-          </p>
-          {availableUsers.length > 0 && availableUsers.some(u => u.uid === 'user_admin_master' && u.pin === '1234') && (
-            <p className="text-[10px] text-blue-400">
-              PIN inicial de Administrador: <code className="bg-slate-950 px-1.5 py-0.5 rounded font-mono font-bold text-white">1234</code> (puedes cambiarlo desde el panel de Usuarios).
-            </p>
-          )}
-          <p className="text-[10px] text-slate-500">
-            Los perfiles y claves son gestionados en tiempo real desde el módulo de Usuarios.
-          </p>
-        </div>
       </div>
     </div>
   );

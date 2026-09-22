@@ -13,7 +13,7 @@ import {
   orderBy,
   Unsubscribe 
 } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { db, auth, sanitizeFirestoreData } from '../lib/firebase';
 import { UserProfile, UserRole, PinAuthResult } from '../types';
 
 const USERS_COLLECTION = 'users';
@@ -89,7 +89,7 @@ export class UserRepository {
   static async saveUserProfile(profile: UserProfile): Promise<void> {
     const docRef = doc(db, USERS_COLLECTION, profile.uid);
     try {
-      await setDoc(docRef, profile, { merge: true });
+      await setDoc(docRef, sanitizeFirestoreData(profile), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `${USERS_COLLECTION}/${profile.uid}`);
     }

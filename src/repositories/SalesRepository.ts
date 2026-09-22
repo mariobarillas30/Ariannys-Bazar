@@ -5,10 +5,10 @@ import {
   runTransaction, 
   query, 
   orderBy, 
-  getDocsFromServer,
+  getDocs,
   Unsubscribe
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, sanitizeFirestoreData } from '../lib/firebase';
 import { Sale, Product, StockMovement, Customer, CashRegister } from '../types';
 
 const SALES_COLLECTION = 'sales';
@@ -52,7 +52,7 @@ export class SalesRepository {
    */
   static async getSalesFromServer(): Promise<Sale[]> {
     const q = query(collection(db, SALES_COLLECTION), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocsFromServer(q);
+    const snapshot = await getDocs(q);
     const sales: Sale[] = [];
     snapshot.forEach((docSnap) => {
       sales.push({ id: docSnap.id, ...docSnap.data() } as Sale);
@@ -191,7 +191,7 @@ export class SalesRepository {
         createdBy: userName,
       };
 
-      transaction.set(saleRef, newSale);
+      transaction.set(saleRef, sanitizeFirestoreData(newSale));
       return saleRef.id;
     });
   }

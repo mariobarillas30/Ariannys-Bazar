@@ -47,6 +47,10 @@ function MainApp() {
   const [selectedReceiptSale, setSelectedReceiptSale] = useState<Sale | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
+  // Estado de validación de PIN para apertura de turno de caja
+  const [hasValidatedPin, setHasValidatedPin] = useState(false);
+  const [autoOpenShift, setAutoOpenShift] = useState(false);
+
   // Auto-ajustar pestaña activa según los permisos del rol del usuario
   useEffect(() => {
     if (userProfile && !canAccessTab(activeTab)) {
@@ -237,7 +241,10 @@ function MainApp() {
                   activeCashRegister={activeCashRegister}
                   cashierName={cashierName}
                   onSaleSuccess={handleSaleSuccess}
-                  onOpenShiftPrompt={() => setActiveTab('cash')}
+                  onOpenShiftPrompt={() => {
+                    setActiveTab('cash');
+                    setAutoOpenShift(true);
+                  }}
                 />
               )}
 
@@ -263,6 +270,10 @@ function MainApp() {
                   movements={cashMovements}
                   allRegisters={allCashRegisters}
                   cashierName={cashierName}
+                  hasValidatedPin={hasValidatedPin}
+                  onPinValidated={() => setHasValidatedPin(true)}
+                  autoOpenShift={autoOpenShift}
+                  onAutoOpenShiftHandled={() => setAutoOpenShift(false)}
                 />
               )}
 

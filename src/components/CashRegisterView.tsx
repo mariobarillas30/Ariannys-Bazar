@@ -1,4 +1,4 @@
-import { useState, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { 
   DollarSign, 
   Lock, 
@@ -25,6 +25,10 @@ interface CashRegisterViewProps {
   movements: CashMovement[];
   allRegisters: CashRegister[];
   cashierName: string;
+  hasValidatedPin?: boolean;
+  onPinValidated?: () => void;
+  autoOpenShift?: boolean;
+  onAutoOpenShiftHandled?: () => void;
 }
 
 export function CashRegisterView({
@@ -32,6 +36,10 @@ export function CashRegisterView({
   movements,
   allRegisters,
   cashierName,
+  hasValidatedPin = false,
+  onPinValidated,
+  autoOpenShift = false,
+  onAutoOpenShiftHandled,
 }: CashRegisterViewProps) {
   const { notifyPendingWrite, showSuccessToast } = useSync();
   const { userProfile, role } = useAuth();
@@ -92,7 +100,20 @@ export function CashRegisterView({
     );
   }, [activeRegister]);
 
-  // Apertura de turno de caja
+  // Manejador al hacer clic en Abrir Turno (POS o CashRegisterView)
+  const handleOpenShiftClick = () => {
+    setErrorMsg(null);
+    setIsOpenShiftModalOpen(true);
+  };
+
+  useEffect(() => {
+    if (autoOpenShift) {
+      if (onAutoOpenShiftHandled) onAutoOpenShiftHandled();
+      handleOpenShiftClick();
+    }
+  }, [autoOpenShift]);
+
+  // Apertura de turno de caja (Ya con PIN validado previamente)
   const handleOpenShift = async (e: FormEvent) => {
     e.preventDefault();
     if (openingBalance < 0) {
@@ -100,27 +121,21 @@ export function CashRegisterView({
       return;
     }
 
-    requestPinAuth(
-      'Autorización de Apertura de Turno',
-      `Ingrese el PIN de cajero para abrir el turno con fondo inicial de $${Number(openingBalance).toFixed(2)} USD o el PIN de Super Admin.`,
-      async () => {
-        setIsSaving(true);
-        setErrorMsg(null);
-        notifyPendingWrite(true);
+    setIsSaving(true);
+    setErrorMsg(null);
+    notifyPendingWrite(true);
 
-        try {
-          await CashRegisterRepository.openRegister(Number(openingBalance), cashierName);
-          showSuccessToast('¡Turno de caja abierto en tiempo real!');
-          setIsOpenShiftModalOpen(false);
-        } catch (err: any) {
-          console.error('Error al abrir caja:', err);
-          setErrorMsg(err.message || 'Error al abrir caja.');
-        } finally {
-          setIsSaving(false);
-          notifyPendingWrite(false);
-        }
-      }
-    );
+    try {
+      await CashRegisterRepository.openRegister(Number(openingBalance), cashierName);
+      showSuccessToast('¡Turno de caja abierto en tiempo real!');
+      setIsOpenShiftModalOpen(false);
+    } catch (err: any) {
+      console.error('Error al abrir caja:', err);
+      setErrorMsg(err.message || 'Error al abrir caja.');
+    } finally {
+      setIsSaving(false);
+      notifyPendingWrite(false);
+    }
   };
 
   // Cierre de turno y registro de arqueo con cálculo de discrepancia
@@ -252,10 +267,7 @@ export function CashRegisterView({
             </>
           ) : (
             <button
-              onClick={() => {
-                setErrorMsg(null);
-                setIsOpenShiftModalOpen(true);
-              }}
+              onClick={handleOpenShiftClick}
               className="flex items-center gap-2 px-3.5 py-1.5 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
             >
               <Unlock className="w-3.5 h-3.5" />

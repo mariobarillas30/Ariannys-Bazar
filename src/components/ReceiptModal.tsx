@@ -1,4 +1,4 @@
-import { Printer, CheckCircle, X, ShoppingBag, Sparkles, Building2, Receipt, FileText } from 'lucide-react';
+import { Printer, CheckCircle, X, ShoppingBag, Building2, Receipt, FileText } from 'lucide-react';
 import { Sale } from '../types';
 import { COMPANY_INFO_SV } from '../lib/elSalvadorData';
 
@@ -205,21 +205,19 @@ export function ReceiptModal({ sale, onClose }: ReceiptModalProps) {
               <span>${sale.subtotal.toFixed(2)} USD</span>
             </div>
             {sale.totalSavings !== undefined && sale.totalSavings > 0 && (
-              <div className="flex justify-between text-purple-300 font-bold">
-                <span className="flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-purple-400" /> Ahorro por Mayoreo:
-                </span>
+              <div className="flex justify-between text-slate-300 font-bold">
+                <span>Ahorro por Mayoreo:</span>
                 <span>-${sale.totalSavings.toFixed(2)} USD</span>
               </div>
             )}
             {sale.discount > 0 && (
-              <div className="flex justify-between text-amber-400">
+              <div className="flex justify-between text-slate-300">
                 <span>Descuento aplicado:</span>
                 <span>-${sale.discount.toFixed(2)} USD</span>
               </div>
             )}
             {isCCF && (
-              <div className="flex justify-between text-purple-300 font-medium">
+              <div className="flex justify-between text-slate-300 font-medium">
                 <span>13% IVA Débito Fiscal:</span>
                 <span>+${sale.tax.toFixed(2)} USD</span>
               </div>
